@@ -39,10 +39,16 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // process
+        const int SHARPEN_ITERATIONS = 2;
+
+        // deep fry
         brighten(arr, w, h); // TODO:
         contrast(arr, w, h); // TODO:
-        sharpen(arr, w, h); // TODO: run multiple iterations
+
+        for (int i = 0; i < SHARPEN_ITERATIONS; i++) {
+            sharpen(arr, w, h);
+        }
+
         saturate(arr, w, h);  // TODO:
         hueShift(arr, w, h); // TODO:
 
