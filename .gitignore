@@ -3,3 +3,9 @@
 *.lib
 *.o
 *.pdb
+
+build/
+bin/
+out.png
+
+.vscode/

@@ -1,6 +1,6 @@
-# deep-frier
+# deep-fryer
 
-An image "deep frier" to learn the basics of CUDA
+An image "deep fryer" to learn CUDA and parallel programming
 
 ## Results
 
@@ -9,13 +9,17 @@ TODO:
 ## Usage
 
 ```sh
+./deep-fryer
+# Usage: deep-fryer <IMAGE_PATH> [OUTPUT_PATH]
 
+./deep-fryer examples/cat.png
 ```
 
-## Build
+## Dependencies
 
-TODO:
+- ImageMagick
+- CUDA
 
 ## References
 
-- TODO:
+- https://deepfriedmemes.com/

@@ -1,12 +1,14 @@
 SRC_DIR := .
+LIB_DIR := libs
 BIN_DIR := bin
 BUILD_DIR := build
 
 TARGET := deep-fryer
-HEADERS := $(SRC_DIR)/kernel.cuh
+HEADERS := -I$(SRC_DIR)/kernel.cuh
+LIBS := -I$(LIB_DIR)/CImg -I$(LIB_DIR)/argparse
 
 NVCC := nvcc
-NVCC_FLAGS := -g -G -Xcompiler -Wall $(HEADERS)
+NVCC_FLAGS := -g -G -std=c++20 -Xcompiler -Wall $(HEADERS) $(LIBS)
 
 all:	init $(TARGET)
 
