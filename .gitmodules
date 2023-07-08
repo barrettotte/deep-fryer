@@ -1,7 +1,6 @@
 [submodule "libs/CImg"]
 	path = libs/CImg
-	url = git@github.com:GreycLab/CImg.git
-
+	url = https://github.com/GreycLab/CImg
 [submodule "libs/argparse"]
 	path = libs/argparse
-	url = git@github.com:p-ranav/argparse.git
+	url = https://github.com/p-ranav/argparse
