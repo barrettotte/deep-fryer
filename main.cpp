@@ -40,7 +40,16 @@ int main(int argc, char* argv[]) {
         }
 
         // process
-        sharpen(arr, w, h);
+        brighten(arr, w, h); // TODO:
+        contrast(arr, w, h); // TODO:
+        sharpen(arr, w, h); // TODO: run multiple iterations
+        saturate(arr, w, h);  // TODO:
+        hueShift(arr, w, h); // TODO:
+
+        // posterization?
+        // overexposure?
+        // noise?
+        // reddish-orange hue-shift?
 
         // copy results back
         for (int y = 0; y < h; y++) {

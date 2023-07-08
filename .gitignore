@@ -8,4 +8,6 @@ build/
 bin/
 out.png
 
+examples/cat-test*
+
 .vscode/
