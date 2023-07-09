@@ -30,27 +30,23 @@ int main(int argc, char* argv[]) {
         cout << "Output: " << outputPath << endl;
 
         // copy image to array
-        uchar4 *arr = (uchar4*) malloc(w * h * sizeof(uchar4));
+        uchar4 *imgArr = (uchar4*) malloc(w * h * sizeof(uchar4));
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                arr[y * w + x].x = image(x, y, 0); // red
-                arr[y * w + x].y = image(x, y, 1); // blue
-                arr[y * w + x].z = image(x, y, 2); // green
+                imgArr[y * w + x].x = image(x, y, 0); // red
+                imgArr[y * w + x].y = image(x, y, 1); // blue
+                imgArr[y * w + x].z = image(x, y, 2); // green
             }
         }
 
-        const int SHARPEN_ITERATIONS = 2;
-
         // deep fry
-        brighten(arr, w, h); // TODO:
-        contrast(arr, w, h); // TODO:
+        brighten(imgArr, w, h); // TODO:
+        contrast(imgArr, w, h); // TODO:
 
-        for (int i = 0; i < SHARPEN_ITERATIONS; i++) {
-            sharpen(arr, w, h);
-        }
+        sharpen(imgArr, w, h, 160.0f);
 
-        saturate(arr, w, h);  // TODO:
-        hueShift(arr, w, h); // TODO:
+        saturate(imgArr, w, h);  // TODO:
+        hueShift(imgArr, w, h); // TODO:
 
         // posterization?
         // overexposure?
@@ -60,15 +56,15 @@ int main(int argc, char* argv[]) {
         // copy results back
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < h; x++) {
-                image(x, y, 0) = arr[y * w + x].x; // red
-                image(x, y, 1) = arr[y * w + x].y; // blue
-                image(x, y, 2) = arr[y * w + x].z; // green
+                image(x, y, 0) = imgArr[y * w + x].x; // red
+                image(x, y, 1) = imgArr[y * w + x].y; // blue
+                image(x, y, 2) = imgArr[y * w + x].z; // green
             }
         }
 
         // save and cleanup
         image.save_png(outputPath.c_str());
-        free(arr);
+        free(imgArr);
 
     } catch(cimg_library::CImgIOException& e) {
         return -2; // image failed to open, CImg prints exception

@@ -4,129 +4,131 @@
 #define TY 32
 #define RAD 1
 
-int divUp(int a, int b) {
-    return (a + b - 1) / b;
+void brighten(uchar4* imgArr, int w, int h) {
+    // TODO:
 }
 
-__device__ unsigned char clip(int n) {
-    return n > 255 ? 255 : (n < 0 ? 0 : n);
+void contrast(uchar4* imgArr, int w, int h) {
+    // TODO:
 }
 
-__device__ int idxClip(int idx, int idxMax) {
-    return idx > (idxMax - 1) ? (idxMax - 1) : (idx < 0 ? 0 : idx);
-}
+__global__ void sharpenKernel(uchar4* d_out, const uchar4* d_in, int w, int h, float amount) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
-__device__ int flatten(int col, int row, int width, int height) {
-    return idxClip(col, width) + idxClip(row, height) * width;
-}
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        float4 blur = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+        float blurWeights = 0.0f;
 
-__global__ void sharpenKernel(uchar4* d_out, const uchar4* d_in, const float* d_filter, int w, int h) {
-    const int c = threadIdx.x + blockDim.x * blockIdx.x;
-    const int r = threadIdx.y + blockDim.y * blockIdx.y;
-    
-    if ((c >= w) || (r >= h)) {
-        return;
-    }
+        // apply blur to image, "unsharp masking"
+        for (int i = -2; i <= 2; i++) {
+            for (int j = -2; j <= 2; j++) {
+                int px = min(max(x + i, 0), w - 1);
+                int py = min(max(y + j, 0), h - 1);
+                int pi = py * w + px;
+                
+                float4 pixel = make_float4(d_in[pi].x, d_in[pi].y, d_in[pi].z, d_in[pi].w);
+                float weight = (i == 0 && j == 0) ? 25.0f : 1.0f;
+                
+                blur.x += pixel.x * weight;
+                blur.y += pixel.y * weight;
+                blur.z += pixel.z * weight;
+                blur.w += pixel.w * weight;
 
-    const int i = flatten(c, r, w, h);
-    const int s_c = threadIdx.x + RAD;
-    const int s_r = threadIdx.y + RAD;
-    const int s_w = blockDim.x + 2 * RAD;
-    const int s_h = blockDim.y + 2 * RAD;
-    const int s_i = flatten(s_c, s_r, s_w, s_h);
-    const int filterSize = 2 * RAD + 1;
-
-    extern __shared__ uchar4 s_block[];
-    uchar4* s_in = s_block;
-    uchar4* s_out = &s_block[s_w * s_h];
-
-    // regular cells
-    s_in[s_i] = d_in[i];
-
-    // halo cells
-    if (threadIdx.x < RAD && threadIdx.y < RAD) {
-        s_in[flatten(s_c - RAD, s_r - RAD, s_w, s_h)] = d_in[flatten(c - RAD, r - RAD, w, h)];
-        s_in[flatten(s_c + blockDim.x, s_r - RAD, s_w, s_h)] = d_in[flatten(c + blockDim.x, r - RAD, w, h)];
-        s_in[flatten(s_c - RAD, s_r + blockDim.y, s_w, s_h)] = d_in[flatten(c - RAD, r + blockDim.y, w, h)];
-        s_in[flatten(s_c + blockDim.x, s_r + blockDim.y, s_w, s_h)] = d_in[flatten(c + blockDim.x, r + blockDim.y, w, h)];
-    }
-    if (threadIdx.x < RAD) {
-        s_in[flatten(s_c - RAD, s_r, s_w, s_h)] = d_in[flatten(c - RAD, r, w, h)];
-        s_in[flatten(s_c + blockDim.x, s_r, s_w, s_h)] = d_in[flatten(c + blockDim.x, r, w, h)];
-    }
-    if (threadIdx.y < RAD) {
-        s_in[flatten(s_c, s_r - RAD, s_w, s_h)] = d_in[flatten(c, r - RAD, w, h)];
-        s_in[flatten(s_c, s_r + blockDim.y, s_w, s_h)] = d_in[flatten(c, r + blockDim.y, w, h)];
-    }
-    
-    __syncthreads();
-
-    float rgb[3] = {0.0f, 0.0f, 0.0f};
-    for (int rd = -RAD; rd <= RAD; rd++) {
-        for (int cd = -RAD; cd <= RAD; cd++) {
-            const int s_imgIdx = flatten(s_c + cd, s_r + rd, s_w, s_h);
-            const int filterIdx = flatten(RAD + cd, RAD + rd, filterSize, filterSize);
-            const uchar4 color = s_in[s_imgIdx];
-            const float weight = d_filter[filterIdx];
-
-            rgb[0] += weight * color.x;
-            rgb[1] += weight * color.y;
-            rgb[2] += weight * color.z;
+                blurWeights += weight;
+            }
         }
+        blur.x /= blurWeights;
+        blur.y /= blurWeights;
+        blur.z /= blurWeights;
+        blur.w /= blurWeights;
+
+        // compute sharpened pixel
+        float4 sharp = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+        float4 pixel = make_float4(d_in[idx].x, d_in[idx].y, d_in[idx].z, d_in[idx].w);
+        sharp.x = pixel.x + amount * (pixel.x - blur.x);
+        sharp.y = pixel.y + amount * (pixel.y - blur.y);
+        sharp.z = pixel.z + amount * (pixel.z - blur.z);
+        sharp.w = pixel.w;
+
+        d_out[idx].x = min(max(static_cast<int>(sharp.x), 0), 255);
+        d_out[idx].y = min(max(static_cast<int>(sharp.y), 0), 255);
+        d_out[idx].z = min(max(static_cast<int>(sharp.z), 0), 255);
+        d_out[idx].w = sharp.w; // preserve alpha
     }
-
-    const int s_outIdx = threadIdx.y * blockDim.x + threadIdx.x;
-    s_out[s_outIdx].x = clip(rgb[0]);
-    s_out[s_outIdx].y = clip(rgb[1]);
-    s_out[s_outIdx].z = clip(rgb[2]);
-
-    __syncthreads;
-
-    d_out[i] = s_out[s_outIdx];
 }
 
-void brighten(uchar4* arr, int w, int h) {
-    // TODO:
-}
-
-void contrast(uchar4* arr, int w, int h) {
-    // TODO:
-}
-
-void sharpen(uchar4 *arr, int w, int h) {
-    const float filter[9] = {
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, 9.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f
-    };
-    const int filterSize = 2 * RAD + 1;
-
+void sharpen(uchar4* imgArr, int w, int h, float amount) {
     uchar4* d_in = 0;
     uchar4* d_out = 0;
-    float* d_filter = 0;
+    size_t imageSize = w * h * sizeof(uchar4);
 
-    cudaMalloc(&d_in, w * h * sizeof(uchar4));
-    cudaMemcpy(d_in, arr, w * h * sizeof(uchar4), cudaMemcpyHostToDevice);
-    cudaMalloc(&d_out, w * h * sizeof(uchar4));
-    cudaMalloc(&d_filter, filterSize * filterSize * sizeof(float));
-    cudaMemcpy(d_filter, filter, filterSize * filterSize * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_in, imageSize);
+    cudaMalloc(&d_out, imageSize);
 
     const dim3 blockSize(TX, TY);
-    const dim3 gridSize(divUp(w, TX), divUp(h, TY));
-    const size_t smSize = ((TX + 2 * RAD) * (TY + 2 * RAD) + (TX * TY)) * sizeof(uchar4);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
 
-    sharpenKernel<<<gridSize, blockSize, smSize>>>(d_out, d_in, d_filter, w, h);
-    cudaMemcpy(arr, d_out, w * h * sizeof(uchar4), cudaMemcpyDeviceToHost);
+    cudaMemcpy(d_in, imgArr, imageSize, cudaMemcpyHostToDevice);
+    sharpenKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h, amount);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imageSize, cudaMemcpyDeviceToHost);
 
-    cudaFree(d_in);
     cudaFree(d_out);
-    cudaFree(d_filter);
+    cudaFree(d_in);
 }
 
-void saturate(uchar4* arr, int w, int h) {
+__global__ void gaussianBlurKernel(uchar4* d_out, const uchar4* d_in, int w, int h) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        float kernel[9] = {0.0625f, 0.125f, 0.1875f, 0.25f, 0.1875f, 0.125f, 0.0625f};
+        float4 sum = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+        for (int i = -3; i <= 3; i++) {
+            int px = min(max(x + i, 0), w - 1);
+            int pi = y * w + px;
+            float4 pixel = make_float4(d_in[pi].x, d_in[pi].y, d_in[pi].z, d_in[pi].w);
+
+            sum.x += pixel.x * kernel[i + 3];
+            sum.y += pixel.y * kernel[i + 3];
+            sum.z += pixel.z * kernel[i + 3];
+            sum.w += pixel.w * kernel[i + 3];
+        }
+        d_out[idx].x = min(max(static_cast<int>(sum.x), 0), 255);
+        d_out[idx].y = min(max(static_cast<int>(sum.y), 0), 255);
+        d_out[idx].z = min(max(static_cast<int>(sum.z), 0), 255);
+        d_out[idx].w = d_in[idx].w;
+    }
+}
+
+void gaussianBlur(uchar4* imgArr, int w, int h) {
+    uchar4* d_in = 0;
+    uchar4* d_out = 0;
+    size_t imageSize = w * h * sizeof(uchar4);
+
+    cudaMalloc(&d_in, imageSize);
+    cudaMalloc(&d_out, imageSize);
+
+    const dim3 blockSize(TX, TY);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    cudaMemcpy(d_in, imgArr, imageSize, cudaMemcpyHostToDevice);
+    gaussianBlurKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imageSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_out);
+    cudaFree(d_in);
+}
+
+void saturate(uchar4* imgArr, int w, int h) {
     // TODO:
 }
 
-void hueShift(uchar4* arr, int w, int h) {
+void hueShift(uchar4* imgArr, int w, int h) {
     // TODO:
 }
