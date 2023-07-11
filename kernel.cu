@@ -17,7 +17,7 @@ __device__ float3 rgbToHsv(float3 rgb) {
 
     if (maxVal != 0.0f) {
         saturation = delta / maxVal;
-        
+
         if (delta != 0.0f) {
             if (maxVal == r) {
                 hue = (g - b) / delta + (g < b ? 6.0f : 0.0f);
@@ -62,8 +62,48 @@ __device__ float3 hsvToRgb(float3 hsv) {
     return make_float3(r, g, b);
 }
 
-void brighten(uchar4* imgArr, int w, int h) {
-    // TODO:
+__global__ void brightenKernel(uchar4* d_out, const uchar4* d_in, int w, int h, float amt) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        uchar4 pixel = d_in[idx];
+        float3 pixelFloat = make_float3(pixel.x / 255.0f, pixel.y / 255.0f, pixel.z / 255.0f);
+        
+        pixelFloat.x = fminf(pixelFloat.x + amt, 1.0f);
+        pixelFloat.y = fminf(pixelFloat.y + amt, 1.0f);
+        pixelFloat.z = fminf(pixelFloat.z + amt, 1.0f);
+
+        pixel.x = min(max(static_cast<int>(pixelFloat.x * 255.0f), 0), 255);
+        pixel.y = min(max(static_cast<int>(pixelFloat.y * 255.0f), 0), 255);
+        pixel.z = min(max(static_cast<int>(pixelFloat.z * 255.0f), 0), 255);
+
+        d_out[idx].x = pixel.x;
+        d_out[idx].y = pixel.y;
+        d_out[idx].z = pixel.z;
+        d_out[idx].w = d_in[idx].w;
+    }
+}
+
+void brighten(uchar4* imgArr, int w, int h, float amt) {
+    uchar4* d_in = 0;
+    uchar4* d_out = 0;
+    size_t imgSize = w * h * sizeof(uchar4);
+
+    cudaMalloc(&d_in, imgSize);
+    cudaMalloc(&d_out, imgSize);
+
+    const dim3 blockSize(TX, TY);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    cudaMemcpy(d_in, imgArr, imgSize, cudaMemcpyHostToDevice);
+    brightenKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h, amt);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imgSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_out);
+    cudaFree(d_in);
 }
 
 __global__ void contrastKernel(uchar4* d_out, const uchar4* d_in, int w, int h, float amt) {
@@ -265,6 +305,92 @@ void saturate(uchar4* imgArr, int w, int h, float amt) {
     cudaFree(d_in);
 }
 
-void hueShift(uchar4* imgArr, int w, int h) {
-    // TODO:
+__global__ void hueShiftKernel(uchar4* d_out, const uchar4* d_in, int w, int h, float amt) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        uchar4 pixel = d_in[idx];
+        float3 pixelFloat = make_float3(pixel.x / 255.0f, pixel.y / 255.0f, pixel.z / 255.0f);
+        float3 hsv = rgbToHsv(pixelFloat);
+
+        hsv.x += amt;
+        hsv.x = fmodf(hsv.x + 1.0f, 1.0f);
+
+        pixelFloat = hsvToRgb(hsv);
+
+        pixel.x = min(max(static_cast<int>(pixelFloat.x * 255.0f), 0), 255);
+        pixel.y = min(max(static_cast<int>(pixelFloat.y * 255.0f), 0), 255);
+        pixel.z = min(max(static_cast<int>(pixelFloat.z * 255.0f), 0), 255);
+
+        d_out[idx].x = pixel.x;
+        d_out[idx].y = pixel.y;
+        d_out[idx].z = pixel.z;
+        d_out[idx].w = d_in[idx].w;
+    }
 }
+
+void hueShift(uchar4* imgArr, int w, int h, float amt) {
+    uchar4* d_in = 0;
+    uchar4* d_out = 0;
+    size_t imgSize = w * h * sizeof(uchar4);
+
+    cudaMalloc(&d_in, imgSize);
+    cudaMalloc(&d_out, imgSize);
+
+    const dim3 blockSize(TX, TY);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    cudaMemcpy(d_in, imgArr, imgSize, cudaMemcpyHostToDevice);
+    hueShiftKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h, amt);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imgSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_out);
+    cudaFree(d_in);
+}
+
+__global__ void redShiftKernel(uchar4* d_out, const uchar4* d_in, int w, int h, float amt) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        uchar4 pixel = d_in[idx];
+        float3 pixelFloat = make_float3(pixel.x / 255.0f, pixel.y / 255.0f, pixel.z / 255.0f);
+        float3 hsv = rgbToHsv(pixelFloat);
+
+        float redFactor = amt / 255.0f;
+        pixel.x = static_cast<unsigned char>(fminf(pixel.x + amt, 255.0f));
+        pixel.y = static_cast<unsigned char>(fmaxf(pixel.y - redFactor, 0.0f));
+        pixel.z = static_cast<unsigned char>(fmaxf(pixel.z - redFactor, 0.0f));
+
+        d_out[idx].x = pixel.x;
+        d_out[idx].y = pixel.y;
+        d_out[idx].z = pixel.z;
+        d_out[idx].w = d_in[idx].w;
+    }
+}
+
+void redShift(uchar4* imgArr, int w, int h, float amt) {
+    uchar4* d_in = 0;
+    uchar4* d_out = 0;
+    size_t imgSize = w * h * sizeof(uchar4);
+
+    cudaMalloc(&d_in, imgSize);
+    cudaMalloc(&d_out, imgSize);
+
+    const dim3 blockSize(TX, TY);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    cudaMemcpy(d_in, imgArr, imgSize, cudaMemcpyHostToDevice);
+    redShiftKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h, amt);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imgSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_out);
+    cudaFree(d_in);
+}
+
+

@@ -40,18 +40,16 @@ int main(int argc, char* argv[]) {
         }
 
         // deep fry
-        brighten(imgArr, w, h); // TODO:
-
+        brighten(imgArr, w, h, 0.1f);
         contrast(imgArr, w, h, 2.0f);
-        sharpen(imgArr, w, h, 160.0f);
+        sharpen(imgArr, w, h, 175.0f);
         saturate(imgArr, w, h, 25.0f);
-
-        hueShift(imgArr, w, h); // TODO:
+        // hueShift(imgArr, w, h, 0.5f);
+        redShift(imgArr, w, h, 50.0f);
 
         // posterization?
         // overexposure?
         // noise?
-        // reddish-orange hue-shift?
 
         // copy results back
         for (int y = 0; y < h; y++) {
@@ -62,8 +60,13 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // save and cleanup
-        image.save_png(outputPath.c_str());
+        // set compression level (0-9) for PNG format
+        const int compressLvl = 0;
+        const int compressions = 3;
+
+        // initial save
+        image.save_png(outputPath.c_str(), compressLvl);
+
         free(imgArr);
 
     } catch(cimg_library::CImgIOException& e) {
