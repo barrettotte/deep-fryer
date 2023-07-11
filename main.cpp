@@ -17,8 +17,9 @@ int main(int argc, char* argv[]) {
         printf("Usage: deep-frier <IMAGE_PATH> [OUTPUT_PATH]\n");
         return -1;
     }
+
     string inputPath = filesystem::absolute(argv[1]).string();
-    string outputPath = filesystem::absolute(argc == 3 ? argv[1] : "./out.jpg").string();
+    string outputPath = filesystem::absolute(argc == 3 ? argv[2] : "./out.jpg").string();
     // TODO: switch to argparse lib
 
     try {
