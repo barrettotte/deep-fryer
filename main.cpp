@@ -43,15 +43,10 @@ int main(int argc, char* argv[]) {
         brighten(imgArr, w, h, 0.1f);
         contrast(imgArr, w, h, 3.0f);
         sharpen(imgArr, w, h, 200.0f);
-        saturate(imgArr, w, h, 25.0f);
-        // hueShift(imgArr, w, h, 0.5f);
+        saturate(imgArr, w, h, 25.0f);       
+        posterize(imgArr, w, h, 4);
+        overexpose(imgArr, w, h, 0.8f);
         redShift(imgArr, w, h, 50.0f);
-
-        // posterization?
-        // overexposure?
-        // dithering?
-        // quantize?
-        // noise?
 
         // copy results back
         for (int y = 0; y < h; y++) {

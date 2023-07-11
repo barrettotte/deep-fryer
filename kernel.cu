@@ -393,4 +393,95 @@ void redShift(uchar4* imgArr, int w, int h, float amt) {
     cudaFree(d_in);
 }
 
+__global__ void posterizeKernel(uchar4* d_out, const uchar4* d_in, int w, int h, int colors) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
 
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        uchar4 pixel = d_in[idx];
+        float3 pixelFloat = make_float3(pixel.x / 255.0f, pixel.y / 255.0f, pixel.z / 255.0f);
+
+        float colorStep = 1.0f / max(colors, 1);
+        pixelFloat.x = floorf(pixelFloat.x / colorStep) * colorStep + colorStep / 2.0f;
+        pixelFloat.y = floorf(pixelFloat.y / colorStep) * colorStep + colorStep / 2.0f;
+        pixelFloat.z = floorf(pixelFloat.z / colorStep) * colorStep + colorStep / 2.0f;
+
+        pixel.x = min(max(static_cast<int>(pixelFloat.x * 255.0f), 0), 255);
+        pixel.y = min(max(static_cast<int>(pixelFloat.y * 255.0f), 0), 255);
+        pixel.z = min(max(static_cast<int>(pixelFloat.z * 255.0f), 0), 255);
+
+        d_out[idx].x = pixel.x;
+        d_out[idx].y = pixel.y;
+        d_out[idx].z = pixel.z;
+        d_out[idx].w = d_in[idx].w;
+    }
+}
+
+void posterize(uchar4* imgArr, int w, int h, int colors) {
+    uchar4* d_in = 0;
+    uchar4* d_out = 0;
+    size_t imgSize = w * h * sizeof(uchar4);
+
+    cudaMalloc(&d_in, imgSize);
+    cudaMalloc(&d_out, imgSize);
+
+    const dim3 blockSize(TX, TY);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    cudaMemcpy(d_in, imgArr, imgSize, cudaMemcpyHostToDevice);
+    posterizeKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h, colors);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imgSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_out);
+    cudaFree(d_in);
+}
+
+__global__ void overexposeKernel(uchar4* d_out, const uchar4* d_in, int w, int h, float amt) {
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if (x < w && y < h) {
+        int idx = y * w + x;
+        uchar4 pixel = d_in[idx];
+        float3 pixelFloat = make_float3(pixel.x / 255.0f, pixel.y / 255.0f, pixel.z / 255.0f);
+
+        pixelFloat.x *= powf(2.0f, amt);
+        pixelFloat.y *= powf(2.0f, amt);
+        pixelFloat.z *= powf(2.0f, amt);
+
+        pixelFloat.x = fminf(fmaxf(pixelFloat.x, 0.0f), 1.0f);
+        pixelFloat.y = fminf(fmaxf(pixelFloat.y, 0.0f), 1.0f);
+        pixelFloat.z = fminf(fmaxf(pixelFloat.z, 0.0f), 1.0f);
+
+        pixel.x = static_cast<int>(pixelFloat.x * 255.0f);
+        pixel.y = static_cast<int>(pixelFloat.y * 255.0f);
+        pixel.z = static_cast<int>(pixelFloat.z * 255.0f);
+
+        d_out[idx].x = pixel.x;
+        d_out[idx].y = pixel.y;
+        d_out[idx].z = pixel.z;
+        d_out[idx].w = d_in[idx].w;
+    }
+}
+
+void overexpose(uchar4* imgArr, int w, int h, float amt) {
+    uchar4* d_in = 0;
+    uchar4* d_out = 0;
+    size_t imgSize = w * h * sizeof(uchar4);
+
+    cudaMalloc(&d_in, imgSize);
+    cudaMalloc(&d_out, imgSize);
+
+    const dim3 blockSize(TX, TY);
+    const dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    cudaMemcpy(d_in, imgArr, imgSize, cudaMemcpyHostToDevice);
+    overexposeKernel<<<gridSize, blockSize>>>(d_out, d_in, w, h, amt);
+    cudaDeviceSynchronize();
+    cudaMemcpy(imgArr, d_out, imgSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_out);
+    cudaFree(d_in);
+}
