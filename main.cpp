@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     string inputPath = filesystem::absolute(argv[1]).string();
-    string outputPath = filesystem::absolute(argc == 3 ? argv[1] : "./out.png").string();
+    string outputPath = filesystem::absolute(argc == 3 ? argv[1] : "./out.jpg").string();
     // TODO: switch to argparse lib
 
     try {
@@ -41,14 +41,16 @@ int main(int argc, char* argv[]) {
 
         // deep fry
         brighten(imgArr, w, h, 0.1f);
-        contrast(imgArr, w, h, 2.0f);
-        sharpen(imgArr, w, h, 175.0f);
+        contrast(imgArr, w, h, 3.0f);
+        sharpen(imgArr, w, h, 200.0f);
         saturate(imgArr, w, h, 25.0f);
         // hueShift(imgArr, w, h, 0.5f);
         redShift(imgArr, w, h, 50.0f);
 
         // posterization?
         // overexposure?
+        // dithering?
+        // quantize?
         // noise?
 
         // copy results back
@@ -60,13 +62,8 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // set compression level (0-9) for PNG format
-        const int compressLvl = 0;
-        const int compressions = 3;
-
-        // initial save
-        image.save_png(outputPath.c_str(), compressLvl);
-
+        const int compression = 1; // 0-100
+        image.save_jpeg(outputPath.c_str(), compression);
         free(imgArr);
 
     } catch(cimg_library::CImgIOException& e) {
