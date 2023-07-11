@@ -41,11 +41,11 @@ int main(int argc, char* argv[]) {
 
         // deep fry
         brighten(imgArr, w, h); // TODO:
-        contrast(imgArr, w, h); // TODO:
 
+        contrast(imgArr, w, h, 2.0f);
         sharpen(imgArr, w, h, 160.0f);
+        saturate(imgArr, w, h, 25.0f);
 
-        saturate(imgArr, w, h);  // TODO:
         hueShift(imgArr, w, h); // TODO:
 
         // posterization?
