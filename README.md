@@ -1,10 +1,17 @@
 # deep-fryer
 
-An image "deep fryer" to learn CUDA and parallel programming
+An image "deep fryer" to learn a little CUDA and parallel programming
 
-## Results
+<div>
+  <a href="examples/moai.jpg">
+    <img src="examples/moai.jpg" alt="moai" width="40%" height="40%"/>
+  </a>
+  <a href="examples/moai-fried.jpg">
+    <img src="examples/moai-fried.jpg" alt="moai fried" width="40%" height="40%"/>
+  </a>
+</div>
 
-TODO:
+Examples in [examples/](examples)
 
 ## Usage
 
@@ -13,12 +20,15 @@ TODO:
 # Usage: deep-fryer <IMAGE_PATH> [OUTPUT_PATH]
 
 ./deep-fryer examples/cat.png
+# outputs fried image to ./out.png
+
+./deep-fryer examples/moai.jpg examples/moai-fried.jpg
 ```
 
 ## Dependencies
 
-- ImageMagick
 - CUDA
+- ImageMagick (for CImg)
 
 ## References
 
