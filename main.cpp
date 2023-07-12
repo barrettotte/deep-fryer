@@ -14,16 +14,14 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        printf("Usage: deep-frier <IMAGE_PATH> [OUTPUT_PATH]\n");
+        printf("Usage: deep-fryer <IMAGE_PATH> [OUTPUT_PATH]\n");
         return -1;
     }
 
     string inputPath = filesystem::absolute(argv[1]).string();
     string outputPath = filesystem::absolute(argc == 3 ? argv[2] : "./out.jpg").string();
-    // TODO: switch to argparse lib
 
     try {
-        // TODO: refactor to function
         cimg_library::CImg<unsigned char> image(inputPath.c_str());
         const int w = image.width();
         const int h = image.height();
@@ -45,7 +43,7 @@ int main(int argc, char* argv[]) {
         contrast(imgArr, w, h, 3.0f);
         sharpen(imgArr, w, h, 200.0f);
         saturate(imgArr, w, h, 25.0f);       
-        posterize(imgArr, w, h, 4);
+        posterize(imgArr, w, h, 4.0f);
         overexpose(imgArr, w, h, 0.8f);
         redShift(imgArr, w, h, 50.0f);
 
