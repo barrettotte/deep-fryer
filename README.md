@@ -13,6 +13,8 @@ An image "deep fryer" to learn a little CUDA and parallel programming
 
 Examples in [examples/](examples)
 
+Note: There's definitely a lot of optimization I could do...but I lost steam.
+
 ## Usage
 
 ```sh
@@ -20,7 +22,7 @@ Examples in [examples/](examples)
 # Usage: deep-fryer <IMAGE_PATH> [OUTPUT_PATH]
 
 ./deep-fryer examples/cat.png
-# outputs fried image to ./out.png
+# outputs fried image to ./out.jpg
 
 ./deep-fryer examples/moai.jpg examples/moai-fried.jpg
 ```
